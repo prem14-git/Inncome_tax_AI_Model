@@ -532,6 +532,68 @@
         .empty-state p {
             margin-bottom: 0;
         }
+        
+        /* Table Styles */
+        .message-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 14px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .message-content table th {
+            background: #667eea;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .message-content table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .message-content table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .message-content table tr:hover {
+            background: #e3f2fd;
+        }
+        
+        .message-content table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        /* Responsive table */
+        .message-content .table-responsive {
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .message-content .table-responsive table {
+            min-width: 100%;
+        }
+        
+        /* Mobile table adjustments */
+        @media (max-width: 768px) {
+            .message-content table {
+                font-size: 12px;
+            }
+            
+            .message-content table th,
+            .message-content table td {
+                padding: 8px 6px;
+            }
+        }
     </style>
 	</head>
 <body>
@@ -837,11 +899,21 @@
                 marked.setOptions({ 
                     headerIds: false, 
                     mangle: false, 
-                    breaks: true 
+                    breaks: true,
+                    tables: true,
+                    gfm: true
                 });
-                const html = marked.parse(text || '');
-					return DOMPurify.sanitize(html);
-				}
+                let html = marked.parse(text || '');
+                
+                // Wrap tables in responsive container
+                html = html.replace(/<table>/g, '<div class="table-responsive"><table>');
+                html = html.replace(/<\/table>/g, '</table></div>');
+                
+                return DOMPurify.sanitize(html, {
+                    ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'div'],
+                    ADD_ATTR: ['class', 'style']
+                });
+            }
 
             // Focus input on load
             $('#messageInput').focus();
