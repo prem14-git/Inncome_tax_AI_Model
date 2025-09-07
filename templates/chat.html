@@ -231,6 +231,20 @@
             color: white;
             text-decoration: none;
         }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+        .copy-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+        #shareChatBtn { margin-right: 20px; }
         
         /* Messages Area */
         .messages-container {
@@ -244,6 +258,7 @@
             margin-bottom: 20px;
             display: flex;
             align-items: flex-start;
+            flex-wrap: wrap;
         }
         
         .message.user {
@@ -268,6 +283,22 @@
             border-radius: 18px;
             position: relative;
         }
+
+        .copy-single-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: #95a5a6;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+        }
+        .message-content:hover .copy-single-btn { display: inline-block; }
+        .copy-single-btn:hover { background: rgba(0,0,0,0.05); color: #2c3e50; }
         
         .message.user .message-content {
             background: #667eea;
@@ -281,6 +312,30 @@
             border: 1px solid #e9ecef;
             border-bottom-left-radius: 4px;
         }
+        /* Below-bubble copy for user message */
+        .copy-user-btn {
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            font-size: 12px;
+            margin: 6px 0 0 0;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        .user-stack:hover .copy-user-btn { opacity: 1; visibility: visible; }
+
+        /* Vertical stack for user message content + copy below */
+        .user-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            max-width: 80%;
+        }
+
+        /* Increase width for user messages on desktop */
+        .message.user .message-content { max-width: 100%; }
         
         .message-time {
             font-size: 11px;
@@ -638,6 +693,10 @@
 							</div>
 						</div>
                 <div class="user-info">
+                    
+                    <button id="shareChatBtn" class="copy-btn" type="button" title="Create share link">
+                        <i class="fas fa-link mr-1"></i>Share
+                    </button>
                     <div class="user-details">
                         <div class="small text-white-50">Logged in as</div>
                         <div class="font-weight-bold text-white">{{ session.get('user_name') or session.get('user_email') }}</div>
@@ -809,6 +868,30 @@
                 $('#messagesContainer').append(messageHtml);
                 $('#emptyState').hide();
             }
+
+            
+
+            // Share current chat
+            $('#shareChatBtn').on('click', async function() {
+                if (!currentSessionId) {
+                    alert('Start a conversation first to share it.');
+                    return;
+                }
+                try {
+                    const res = await $.post(`/share/${currentSessionId}`);
+                    if (res && res.success && res.url) {
+                        await navigator.clipboard.writeText(res.url);
+                        const btn = $('#shareChatBtn');
+                        const original = btn.html();
+                        btn.html('<i class="fas fa-check mr-1"></i>Link Copied');
+                        setTimeout(() => btn.html('<i class="fas fa-link mr-1"></i>Share'), 1200);
+                    } else {
+                        alert(res && res.message ? res.message : 'Failed to create share link');
+                    }
+                } catch (e) {
+                    alert('Failed to create share link.');
+                }
+            });
             
             function createMessageHtml(role, content) {
                 const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -819,10 +902,27 @@
                 const messageClass = role === 'user' ? 'user' : 'assistant';
                 const formattedContent = role === 'assistant' ? formatBotText(content) : escapeHtml(content);
                 
+                const copyBelow = role === 'user' ? `<button class=\"copy-user-btn\" title=\"Copy message\" type=\"button\"><i class=\"fas fa-copy\"></i> Copy</button>` : '';
+                const copyInside = role === 'assistant' ? `<button class=\"copy-single-btn\" title=\"Copy message\" type=\"button\"><i class=\"fas fa-copy\"></i></button>` : '';
+                if (role === 'user') {
+                    return `
+                        <div class="message ${messageClass}">
+                            <img src="${avatar}" class="message-avatar" alt="${role}">
+                            <div class="user-stack">
+                                <div class="message-content">
+                                    <div class="message-text">${formattedContent}</div>
+                                    <div class="message-time">${time}</div>
+                                </div>
+                                <button class="copy-user-btn" title="Copy message" type="button"><i class="fas fa-copy"></i> Copy</button>
+                            </div>
+                        </div>
+                    `;
+                }
                 return `
                     <div class="message ${messageClass}">
                         <img src="${avatar}" class="message-avatar" alt="${role}">
                         <div class="message-content">
+                            ${copyInside}
                             <div class="message-text">${formattedContent}</div>
                             <div class="message-time">${time}</div>
                         </div>
@@ -917,6 +1017,49 @@
 
             // Focus input on load
             $('#messageInput').focus();
+
+            // Copy single message handler (event delegation)
+            $(document).on('click', '.copy-single-btn', async function(e) {
+                e.stopPropagation();
+                const $content = $(this).closest('.message-content').find('.message-text');
+                // Get plain text (not HTML)
+                const text = $content.text();
+                try {
+                    await navigator.clipboard.writeText(text);
+                    const btn = $(this);
+                    const original = btn.html();
+                    btn.html('<i class="fas fa-check"></i>');
+                    setTimeout(() => btn.html('<i class="fas fa-copy"></i>'), 900);
+                } catch (err) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+            });
+
+            // Copy user-below button
+            $(document).on('click', '.copy-user-btn', async function(e) {
+                e.stopPropagation();
+                const $msg = $(this).prev('.message-content');
+                const text = $msg.find('.message-text').text();
+                try {
+                    await navigator.clipboard.writeText(text);
+                    const btn = $(this);
+                    const original = btn.html();
+                    btn.html('<i class="fas fa-check"></i> Copied');
+                    setTimeout(() => btn.html('<i class="fas fa-copy"></i> Copy'), 900);
+                } catch (err) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+            });
 			});
 		</script>
     </body>

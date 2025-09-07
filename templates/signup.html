@@ -277,6 +277,18 @@
             border-radius: 8px;
             margin-bottom: 1rem;
         }
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 70%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c757d;
+            padding: 4px;
+            cursor: pointer;
+        }
+        .toggle-password:focus { outline: none; }
     </style>
 </head>
 
@@ -307,33 +319,57 @@
                                 <label for="name">
                                     <i class="fas fa-user mr-1"></i>Full Name
                                 </label>
-                                <input type="text" name="name" id="name" class="form-control" placeholder="Enter your full name" required>
+                                <input type="text" name="name" id="name" class="form-control" placeholder="Enter your full name" required value="{{ user_name or request.form.get('name', '') }}">
                             </div>
                             
                             <div class="form-group">
                                 <label for="email">
                                     <i class="fas fa-envelope mr-1"></i>Email Address
                                 </label>
-                                <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email" required>
+                                <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email" required value="{{ user_email or request.form.get('email', '') }}">
                             </div>
                             
-                            <div class="form-group">
+                            <div class="form-group" style="position: relative;">
                                 <label for="password">
                                     <i class="fas fa-lock mr-1"></i>Password
                                 </label>
-                                <input type="password" name="password" id="password" class="form-control" placeholder="Create a strong password" required>
+                                <input type="password" name="password" id="password" class="form-control" placeholder="Create a strong password" required minlength="6" value="{{ request.form.get('password', '') }}" autocomplete="off">
+                                <button type="button" class="toggle-password" aria-label="Show password" tabindex="-1">
+                                    <i class="fas fa-eye" id="toggleIcon"></i>
+                                </button>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary btn-block">
-                                <i class="fas fa-user-plus mr-2"></i>Create Account
-                            </button>
-                        </form>
-                        
-                        <div class="login-link">
-                            <p class="mb-0">Already have an account? 
-                                <a href="{{ url_for('login') }}">Sign In</a>
-                            </p>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-user-plus mr-2"></i>Create Account
+                        </button>
+                    </form>
+                    
+                    <!-- Verify Email Button (shown after successful signup) -->
+                    {% if show_verify_button %}
+                    <div class="verify-email-section mt-4">
+                        <div class="alert alert-success text-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Account created! Now verify your email to complete registration.
                         </div>
+                        <p class="text-center mb-2" style="font-size: 0.9rem; color: #495057;">
+                            Click on the Verify Email button to verify your email.
+                        </p>
+                        <button type="button" class="btn btn-success btn-block" id="verifyEmailBtn">
+                            <i class="fas fa-envelope mr-2"></i>Verify Email
+                        </button>
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                We'll send a verification code to: <strong>{{ user_email }}</strong>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="login-link">
+                        <p class="mb-0">Already have an account? 
+                            <a href="{{ url_for('login') }}">Sign In</a>
+                        </p>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -341,5 +377,49 @@
     </div>
 
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Toggle password visibility
+            $('.toggle-password').on('click', function() {
+                const input = $('#password');
+                const icon = $('#toggleIcon');
+                const isPassword = input.attr('type') === 'password';
+                input.attr('type', isPassword ? 'text' : 'password');
+                icon.toggleClass('fa-eye fa-eye-slash');
+                $(this).attr('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+
+            // Handle Verify Email button click
+            $('#verifyEmailBtn').click(function() {
+                const btn = $(this);
+                const originalText = btn.html();
+                
+                // Disable button and show loading
+                btn.prop('disabled', true);
+                btn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Sending...');
+                
+                // Send verification email, then immediately redirect to verification page on success
+                $.ajax({
+                    url: '/send_verification',
+                    method: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            window.location.href = '/verify_email';
+                        } else {
+                            alert('Error: ' + response.message);
+                            btn.prop('disabled', false);
+                            btn.html(originalText);
+                        }
+                    },
+                    error: function() {
+                        alert('Failed to send verification email. Please try again.');
+                        btn.prop('disabled', false);
+                        btn.html(originalText);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

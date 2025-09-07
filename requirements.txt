@@ -1,3 +1,18 @@
+# langchain==0.3.26
+# flask==3.1.1
+# sentence-transformers==4.1.0
+# pypdf==5.6.1
+# python-dotenv==1.1.0
+# langchain-pinecone==0.2.8
+# langchain-community==0.3.26
+# langchain-google-genai
+# flask-sqlalchemy==3.1.1
+# psycopg2-binary==2.9.9
+# flask-mail==0.9.1
+# -e .
+
+
+
 langchain==0.3.26
 flask==3.1.1
 sentence-transformers==4.1.0
@@ -8,4 +23,6 @@ langchain-community==0.3.26
 langchain-google-genai
 flask-sqlalchemy==3.1.1
 psycopg2-binary==2.9.9
+flask-mail==0.9.1
+werkzeug==3.1.1
 -e .
