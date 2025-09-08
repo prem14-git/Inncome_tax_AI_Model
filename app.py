@@ -244,19 +244,35 @@ def send_verification_email(email, name, verification_code):
         traceback.print_exc()
         return False
 
-embeddings = download_hugging_face_embeddings()
+# Initialize embeddings and vector store lazily
+embeddings = None
+docsearch = None
+retriever = None
 
-index_name = "lawbot" 
-# Embed each chunk and upsert the embeddings into your Pinecone index.
-docsearch = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
-    embedding=embeddings
-)
+def get_embeddings():
+    global embeddings
+    if embeddings is None:
+        embeddings = download_hugging_face_embeddings()
+    return embeddings
 
+def get_docsearch():
+    global docsearch
+    if docsearch is None:
+        embeddings = get_embeddings()
+        index_name = "lawbot" 
+        # Embed each chunk and upsert the embeddings into your Pinecone index.
+        docsearch = PineconeVectorStore.from_existing_index(
+            index_name=index_name,
+            embedding=embeddings
+        )
+    return docsearch
 
-
-
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k":3})
+def get_retriever():
+    global retriever
+    if retriever is None:
+        docsearch = get_docsearch()
+        retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k":3})
+    return retriever
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
@@ -268,7 +284,15 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 question_answer_chain = create_stuff_documents_chain(llm , prompt)
-reg_chain = create_retrieval_chain(retriever , question_answer_chain)
+# Initialize retrieval chain lazily
+reg_chain = None
+
+def get_reg_chain():
+    global reg_chain
+    if reg_chain is None:
+        retriever = get_retriever()
+        reg_chain = create_retrieval_chain(retriever , question_answer_chain)
+    return reg_chain
 
 
 
@@ -325,6 +349,7 @@ def chat():
     db.session.add(user_message)
     
     # Get AI response
+    reg_chain = get_reg_chain()
     response = reg_chain.invoke({"input": msg})
     ai_response = response["answer"]
     
