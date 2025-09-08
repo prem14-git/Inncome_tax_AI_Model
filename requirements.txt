@@ -25,4 +25,5 @@ flask-sqlalchemy==3.1.1
 psycopg2-binary==2.9.9
 flask-mail==0.9.1
 werkzeug==3.1.1
+gunicorn
 -e .
